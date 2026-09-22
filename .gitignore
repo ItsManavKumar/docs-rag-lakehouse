@@ -1,0 +1,30 @@
+# --- secrets: never commit keys ---
+.env
+.env.*
+*.env
+secrets*.yaml
+secrets*.json
+.databrickscfg
+
+# --- raw documents: public, but third-party copyright; the manifest links to the sources ---
+data/pdfs/
+*.pdf
+!docs/*.pdf
+
+# --- generated data / models ---
+data/local_lake/
+models/
+tests/fixtures/
+eval/questions_draft.jsonl
+
+# --- python / tooling ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+.databricks/
+.DS_Store
+.idea/
+.vscode/

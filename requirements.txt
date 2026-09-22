@@ -1,0 +1,10 @@
+# Runtime (Databricks notebooks and local runs)
+pdfplumber>=0.11
+pypdf>=4
+sentence-transformers>=3
+faiss-cpu>=1.8
+openai>=1.40
+pyyaml>=6
+pandas>=2
+numpy>=1.26
+databricks-vectorsearch>=0.40   # only used when retrieval.vector_backend = databricks_vs

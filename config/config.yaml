@@ -1,0 +1,58 @@
+# docs-rag-lakehouse configuration
+# ------------------------------------------------------------------
+# To point the pipeline at a different document set, change the
+# `corpus` block (name + folder + manifest). Nothing else needs to move.
+
+project:
+  catalog: workspace          # Free Edition default catalog
+  schema: docs_rag            # created by notebook 00 if missing
+
+corpus:
+  name: dulux_datasheets      # stored in every table's `corpus` column
+  # Databricks: a Unity Catalog Volume folder holding the PDFs
+  pdf_dir: /Volumes/workspace/docs_rag/raw_pdfs/dulux_datasheets
+  # Optional CSV with file,brand,product,doc_type,source_url (see data/manifest.example.csv)
+  manifest: /Volumes/workspace/docs_rag/raw_pdfs/dulux_datasheets/manifest.csv
+  # Local runs (scripts/run_local.py) read from here instead
+  local_pdf_dir: data/pdfs
+  local_manifest: data/manifest.csv
+  # Brand names to look for when the manifest doesn't say
+  known_brands: ["Dulux", "Selleys", "Cabot's", "Berger", "Feast Watson", "Intergrain", "British Paints", "Yates"]
+
+extraction:
+  tables_as_key_value: true   # render PDF tables as "key: value" lines instead of jumbled text
+  strip_repeated_lines: true  # drop headers/footers that repeat on most pages of a document
+
+chunking:
+  max_words: 220              # hard cap per chunk (bge-small's limit is 512 tokens)
+  overlap_words: 40           # carried into the next chunk when a long section is split
+  min_words: 12               # smaller fragments are merged into their neighbour
+
+embedding:
+  model_name: BAAI/bge-small-en-v1.5
+  # If Free Edition can't reach huggingface.co, download the model on your laptop,
+  # upload the folder to a Volume and put its path here.
+  model_path: null            # e.g. /Volumes/workspace/docs_rag/models/bge-small-en-v1.5
+  query_prefix: "Represent this sentence for searching relevant passages: "
+  batch_size: 32
+
+retrieval:
+  top_k: 5
+  use_metadata_filter: true   # restrict search to a product/brand named in the question
+  vector_backend: faiss       # faiss | databricks_vs
+  index_dir: /Volumes/workspace/docs_rag/artifacts/faiss
+  vs_endpoint: docs-rag-endpoint   # only used when vector_backend = databricks_vs
+
+llm:
+  # Any OpenAI-compatible endpoint works. Default: Vercel AI Gateway.
+  base_url: https://ai-gateway.vercel.sh/v1
+  model: anthropic/claude-sonnet-5
+  api_key_env: AI_GATEWAY_API_KEY   # local runs
+  secret_scope: docs-rag            # Databricks runs: dbutils.secrets.get(scope, key)
+  secret_key: ai-gateway-key
+  temperature: 0
+  max_tokens: 700
+
+evaluation:
+  questions_file: eval/questions.jsonl
+  judge_model: anthropic/claude-sonnet-5

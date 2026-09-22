@@ -1,0 +1,15 @@
+# Config used by the test-suite (synthetic fixtures, offline).
+project: {catalog: workspace, schema: docs_rag_test}
+corpus:
+  name: test_fixtures
+  pdf_dir: tests/fixtures/pdfs
+  manifest: tests/fixtures/pdfs/manifest.csv
+  local_pdf_dir: tests/fixtures/pdfs
+  local_manifest: tests/fixtures/pdfs/manifest.csv
+  known_brands: ["Acme", "Brightco"]
+extraction: {tables_as_key_value: true, strip_repeated_lines: true}
+chunking: {max_words: 220, overlap_words: 40, min_words: 12}
+embedding: {model_name: none, model_path: null, query_prefix: "", batch_size: 32}
+retrieval: {top_k: 5, use_metadata_filter: true, vector_backend: faiss, index_dir: data/local_lake/faiss, vs_endpoint: none}
+llm: {base_url: "http://localhost", model: fake, api_key_env: NONE, secret_scope: none, secret_key: none, temperature: 0, max_tokens: 100}
+evaluation: {questions_file: tests/test_questions.jsonl, judge_model: fake}

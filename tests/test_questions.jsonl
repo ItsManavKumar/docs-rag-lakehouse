@@ -1,0 +1,4 @@
+{"id": "t1", "question": "What is the recoat time for Acme WallGuard Kitchen & Bathroom?", "answerable": true, "expected_answer": "4 hours", "expected_file": "acme-wallguard-kitchen-bathroom-tds.pdf", "expected_pages": [1], "expected_keywords": ["4 hours"]}
+{"id": "t2", "question": "What is the recoat time for WallGuard Low Sheen?", "answerable": true, "expected_answer": "2 hours", "expected_file": "acme-wallguard-low-sheen-tds.pdf", "expected_pages": [1], "expected_keywords": ["2 hours"]}
+{"id": "t3", "question": "How long should new timber weather before applying DeckCoat?", "answerable": true, "expected_answer": "4 weeks", "expected_file": "brightco-deckcoat-tds.pdf", "expected_pages": [2]}
+{"id": "t4", "question": "What is the price of DeckCoat per litre?", "answerable": false, "expected_answer": "", "expected_file": ""}

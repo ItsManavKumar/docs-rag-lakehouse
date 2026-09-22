@@ -1,0 +1,23 @@
+// TEMPLATE: replace every line with a real question from YOUR PDFs (lines starting with // are ignored).
+// Aim for 20: ~15 answerable, ~5 unanswerable. Check each answer by opening the PDF at that page.
+// Include: similar-product pairs, TDS table facts, SDS sections, and one that needs the right doc type.
+{"id": "q01", "question": "What is the recoat time for <PRODUCT A>?", "answerable": true, "expected_answer": "<e.g. 2 hours>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": ["<2 hours>"]}
+{"id": "q02", "question": "What is the recoat time for <PRODUCT B, the near-identical sibling of A>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": []}
+{"id": "q03", "question": "What coverage (m2 per litre) does <PRODUCT> give?", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": []}
+{"id": "q04", "question": "How should bare plaster be prepared before applying <PRODUCT>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [2], "expected_keywords": []}
+{"id": "q05", "question": "What is the touch dry time for <PRODUCT>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": []}
+{"id": "q06", "question": "What first aid is recommended for eye contact with <PRODUCT>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<sds file.pdf>", "expected_pages": [2], "expected_keywords": []}
+{"id": "q07", "question": "How should <PRODUCT> be stored?", "answerable": true, "expected_answer": "<...>", "expected_file": "<sds file.pdf>", "expected_pages": [3], "expected_keywords": []}
+{"id": "q08", "question": "What should I clean brushes with after using <PRODUCT>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [2], "expected_keywords": []}
+{"id": "q09", "question": "What is the minimum application temperature for <PRODUCT>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [2], "expected_keywords": []}
+{"id": "q10", "question": "Which Selleys product ... <question whose answer is in a Selleys document>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": []}
+{"id": "q11", "question": "How long should new timber weather before applying <Cabot's PRODUCT>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": []}
+{"id": "q12", "question": "<question answered by a TABLE in a TDS>", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": []}
+{"id": "q13", "question": "<question answered by a TABLE in a TDS>", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": []}
+{"id": "q14", "question": "<question without naming the product explicitly, e.g. 'Which paint is suitable for bathrooms?'>", "answerable": true, "expected_answer": "<...>", "expected_file": "<file.pdf>", "expected_pages": [1], "expected_keywords": []}
+{"id": "q15", "question": "What PPE is recommended when using <PRODUCT>?", "answerable": true, "expected_answer": "<...>", "expected_file": "<sds file.pdf>", "expected_pages": [3], "expected_keywords": []}
+{"id": "q16", "question": "How much does a 4L tin of <PRODUCT> cost?", "answerable": false, "expected_answer": "", "expected_file": ""}
+{"id": "q17", "question": "Is <PRODUCT> available at Bunnings?", "answerable": false, "expected_answer": "", "expected_file": ""}
+{"id": "q18", "question": "What is the recoat time for <A PRODUCT THAT IS NOT IN YOUR CORPUS>?", "answerable": false, "expected_answer": "", "expected_file": ""}
+{"id": "q19", "question": "What colour should I paint my living room?", "answerable": false, "expected_answer": "", "expected_file": ""}
+{"id": "q20", "question": "<a plausible technical question the documents don't answer>", "answerable": false, "expected_answer": "", "expected_file": ""}

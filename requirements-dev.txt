@@ -1,0 +1,5 @@
+-r requirements.txt
+pyspark>=3.5      # local Spark for tests (Databricks provides Spark itself)
+pyarrow>=14
+pytest>=8
+reportlab>=4      # generates synthetic test PDFs
