@@ -34,6 +34,13 @@ TDS_HEADINGS = (
     "limitations", "precautions", "safety", "safety precautions", "health and safety",
     "packaging", "pack sizes", "thinning", "tinting", "maintenance", "important notes",
     "warranty", "disclaimer", "systems", "paint system", "curing", "cure time",
+    # seen in DuSpec+ (Dulux/Cabot's) and Selleys data sheets
+    "introduction", "description and image", "product information", "technical details",
+    "technical features", "how to use", "approvals & standards", "approvals and standards",
+    "precautions and limitations", "typical properties", "application data",
+    "application details", "recommended systems", "substrates", "additional information",
+    "technical specifications", "environmental", "sustainability", "approvals",
+    "standards & certificates", "standards and certificates",
 )
 
 # keyword -> canonical label, first match wins (order matters)
@@ -46,7 +53,7 @@ CANONICAL = (
     ("clean", "Clean up"),
     ("first aid", "First aid"),
     ("fire", "Fire fighting"),
-    ("accidental", "Spills"),
+    ("accidental", "Spills"), ("spill", "Spills"),
     ("handling", "Handling and storage"), ("storage", "Handling and storage"),
     ("shelf", "Handling and storage"),
     ("exposure", "Exposure controls / PPE"), ("protection", "Exposure controls / PPE"),
@@ -57,17 +64,21 @@ CANONICAL = (
     ("product data", "Technical data"),
     ("stability", "Stability"), ("reactivity", "Stability"),
     ("toxicolog", "Toxicology"), ("ecolog", "Ecology"), ("disposal", "Disposal"),
-    ("transport", "Transport"), ("regulatory", "Regulatory"),
+    ("transport", "Transport"), ("dangerous good", "Transport"), ("regulatory", "Regulatory"),
     ("identification", "Identification"),
+    ("cas no", "Composition"), ("proportion", "Composition"),
     ("appl", "Application"), ("direction", "Application"), ("how to", "Application"),
     ("thinning", "Application"),
     ("use", "Uses"), ("suitable", "Uses"), ("where", "Uses"),
+    ("introduction", "Product description"),
     ("description", "Product description"), ("feature", "Product description"),
     ("benefit", "Product description"),
     ("colour", "Colours and finish"), ("finish", "Colours and finish"),
     ("sheen", "Colours and finish"), ("tint", "Colours and finish"),
     ("safety", "Safety"), ("precaution", "Safety"), ("limitation", "Limitations"),
-    ("pack", "Packaging"),
+    ("pack", "Packaging"), ("maintenance", "Maintenance"),
+    ("approv", "Approvals"), ("standard", "Approvals"), ("certif", "Approvals"),
+    ("product information", "Technical data"),
 )
 
 _SDS_NUMBERED = re.compile(
@@ -75,12 +86,41 @@ _SDS_NUMBERED = re.compile(
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?;])\s+")
 
 
+_CANON_RX = [(re.compile(r"\b" + re.escape(k)), label) for k, label in CANONICAL]
+_INLINE_HEADING = re.compile(r"^([A-Z][A-Za-z&/()' \-]{2,45}?)\s*:\s+(.+)$")
+_BULLET = re.compile(r"^[\u2022\u25cf\u25aa\-\*\d]+[.)]?\s")
+_SMALL_WORDS = {"and", "or", "of", "for", "to", "the", "a", "an", "in", "on", "with", "&"}
+
+
 def canonical_section(heading: str) -> str:
     h = heading.lower()
-    for key, label in CANONICAL:
-        if key in h:
+    for rx, label in _CANON_RX:
+        if rx.search(h):
             return label
     return "General"
+
+
+def _is_title_case(s: str) -> bool:
+    words = [w for w in re.split(r"\s+", s) if w]
+    return bool(words) and all(w[0].isupper() or w.lower() in _SMALL_WORDS or not w[0].isalpha()
+                               for w in words)
+
+
+def split_inline_heading(line: str) -> tuple[str, str] | None:
+    """'Uses: Use Aquanamel on doors and trim ...' -> ('Uses', 'Use Aquanamel on ...').
+
+    Only when the prefix is a short, title-case phrase with a section keyword AND the rest
+    is a real sentence (>= 8 words). Short 'Recoat: 2 hours' lines are table rows, not headings.
+    """
+    m = _INLINE_HEADING.match(line.strip())
+    if not m:
+        return None
+    head, rest = m.group(1).strip(), m.group(2).strip()
+    if len(head.split()) > 5 or len(rest.split()) < 8 or not _is_title_case(head):
+        return None
+    if head.lower() in TDS_HEADINGS or canonical_section(head) != "General":
+        return head, rest
+    return None
 
 
 def detect_heading(line: str) -> str | None:
@@ -101,6 +141,9 @@ def detect_heading(line: str) -> str | None:
         return None
     if bare.lower() in TDS_HEADINGS:
         return bare.title() if bare.isupper() else bare
+    if (len(words) <= 5 and not _BULLET.match(s) and _is_title_case(bare)
+            and not re.search(r"[\d.;,!?]", bare) and canonical_section(bare) != "General"):
+        return bare
     letters = [c for c in bare if c.isalpha()]
     digit_share = sum(c.isdigit() for c in bare) / max(len(bare), 1)
     if len(letters) >= 5 and digit_share < 0.1 and not bare.endswith("."):
@@ -140,6 +183,10 @@ def sectionize(pages: list[dict]) -> list[dict]:
             h = detect_heading(line)
             if h:
                 sections.append({"heading": h, "lines": []})
+                continue
+            inline = split_inline_heading(line)
+            if inline:
+                sections.append({"heading": inline[0], "lines": [(p["page"], inline[1])]})
             else:
                 sections[-1]["lines"].append((p["page"], line))
     return [s for s in sections if s["lines"]]

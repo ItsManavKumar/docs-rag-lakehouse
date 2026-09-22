@@ -31,14 +31,14 @@ def test_bronze_silver(spark):
     manifest = load_manifest(os.path.join(pdf_dir, "manifest.csv"))
 
     bronze = build_bronze(read_pdfs(spark, pdf_dir), cfg, manifest, SRC)
-    assert bronze.select("file").distinct().count() == 6
+    assert bronze.select("file").distinct().count() == 8
     assert bronze.filter("needs_ocr").count() == 1
 
     silver, dropped = build_silver(bronze, cfg, list(manifest), SRC)
     d = dropped.collect()
     assert [(r.dropped_file, r.kept_file) for r in d] == [
         ("acme-wallguard-low-sheen-sds-copy.pdf", "acme-wallguard-low-sheen-sds.pdf")]
-    assert silver.count() == 16
+    assert silver.count() == 24
     assert silver.filter("text LIKE '%Page 1 of%'").count() == 0
     kb = silver.filter("product = 'WallGuard Kitchen & Bathroom' AND section_canonical = 'Technical data'").first()
     assert "Recoat: 4 hours" in kb.text

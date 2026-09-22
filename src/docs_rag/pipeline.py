@@ -14,8 +14,8 @@ from .extract import extract_pages
 from .metadata import doc_metadata
 
 BRONZE_COLUMNS = ["corpus", "file", "path", "file_sha256", "brand", "product", "doc_type",
-                  "source_url", "page", "n_pages", "text", "n_chars", "n_tables", "extractor",
-                  "needs_ocr"]
+                  "source_url", "page", "n_pages", "text", "n_chars", "n_tables", "n_columns",
+                  "extractor", "needs_ocr"]
 
 SILVER_COLUMNS = ["corpus", "chunk_id", "chunk_index", "file", "brand", "product", "doc_type",
                   "source_url", "section", "section_canonical", "page_start", "page_end", "text",
@@ -31,7 +31,8 @@ def bronze_rows_for_pdf(path: str, pdf_bytes: bytes, cfg: dict, manifest: dict) 
     return [{
         "corpus": cfg["corpus"]["name"], "file": file_name, "path": path, "file_sha256": sha,
         **meta, "page": p["page"], "n_pages": len(pages), "text": p["text"],
-        "n_chars": len(p["text"]), "n_tables": p["n_tables"], "extractor": p["extractor"],
+        "n_chars": len(p["text"]), "n_tables": p["n_tables"], "n_columns": p.get("n_columns", 1),
+        "extractor": p["extractor"],
         "needs_ocr": p["needs_ocr"],
     } for p in pages]
 

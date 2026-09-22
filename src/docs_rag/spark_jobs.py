@@ -19,7 +19,8 @@ BRONZE_SCHEMA = T.StructType([
     T.StructField("doc_type", T.StringType()), T.StructField("source_url", T.StringType()),
     T.StructField("page", T.IntegerType()), T.StructField("n_pages", T.IntegerType()),
     T.StructField("text", T.StringType()), T.StructField("n_chars", T.IntegerType()),
-    T.StructField("n_tables", T.IntegerType()), T.StructField("extractor", T.StringType()),
+    T.StructField("n_tables", T.IntegerType()), T.StructField("n_columns", T.IntegerType()),
+    T.StructField("extractor", T.StringType()),
     T.StructField("needs_ocr", T.BooleanType()),
 ])
 

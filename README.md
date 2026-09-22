@@ -189,13 +189,19 @@ Found while testing the pipeline on synthetic data sheets (`tests/make_fixtures.
 | "Wash&Wear Low Sheen" didn't match the product "Wash&Wear 101 Low Sheen" | match on 75% of distinctive tokens, most specific product first; ambiguous questions get no filter |
 | `df.cache()` isn't supported on serverless compute | removed; the data is small enough to recompute |
 
-<!-- TODO: add what you hit on the real PDFs, e.g. a table that still parsed badly, a product retrieved for its sibling,
-     a scanned page, a question the model answered from outside knowledge. Each row = one interview story. -->
-Found on the real corpus:
+Found on the real corpus (34 public data sheets):
 
 | Problem | Fix |
 |---|---|
-| | |
+| **67% of chunks (315 of 467) had no recognised section.** DuSpec+ data sheets (Dulux, Cabot's) use Title Case headings with no colon (`Description and Image`) and inline headings (`Uses: Use Aquanamel on...`); the detector only knew ALL-CAPS and `Heading:` lines | recognise title-case headings that contain a section keyword, and split inline `Heading: sentence` lines (only when the rest is a real sentence, so `Recoat: 2 hours` table rows stay content). After: **15% (80 of 533)** |
+| **Two-column Selleys sheets were read straight across**, merging unrelated sentences (`Approvals & Standards with skin and eyes.`) | detect a vertical gutter and read left column then right, band by band, so full-width titles, tables and footers stay in order |
+| **Tables were appended at the end of each page**, so a drying-time table could land under the last heading on the page | place each table back at its vertical position among the text lines |
+| 3 of 37 source links failed: 2 returned a CAPTCHA page instead of a PDF, 1 was a 404 | download script checks every file starts with `%PDF`; failed documents were removed from the manifest so it lists exactly the corpus |
+| Hundreds of `Could not get FontBBox` warnings from malformed fonts in some PDFs | harmless; silenced pdfminer's logger |
+| Even after the layout fixes, several genuine headings still fell into "General": SDS sub-headings (`Small Spills`, `Dangerous Good Classification`, `Chemical Entity Cas No Proportion`), TDS `Introduction`/`Product Information` blocks, and Selleys `Standards & Certificates` — either unmapped in `CANONICAL` or (for `Standards & Certificates`) not yet in `TDS_HEADINGS` | added `Standards & Certificates` as a recognised heading, and new `CANONICAL` keyword rules (`spill`→Spills, `dangerous good`→Transport, `cas no`/`proportion`→Composition, `introduction`→Product description, `approv`/`standard`/`certif`→Approvals, `product information`→Technical data, `maintenance`→Maintenance) |
+| DuSpec+ page frames with panel dividers were read as a one-column table covering the page, squashing each panel (heading + property table) into one line | reject "tables" with fewer than 2 rows or 2 columns of content, or covering >70% of the page |
+
+<!-- TODO: add more as you find them (a product retrieved for its sibling, an answer from outside knowledge, ...) -->
 
 ## Limitations
 - No OCR: pages without a text layer are flagged in `silver_dq_checks` and skipped.

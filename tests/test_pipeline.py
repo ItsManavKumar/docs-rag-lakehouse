@@ -3,6 +3,7 @@ import subprocess
 import sys
 
 import numpy as np
+import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "src"))
@@ -104,3 +105,68 @@ def test_end_to_end_offline(tmp_path):
     assert "WallGuard Kitchen & Bathroom" in ans and "metadata filter" in ans
     ev = run("eval")
     assert "retrieval_hit_rate" in ev
+
+
+# --- layouts found on the real corpus -------------------------------------------------
+
+@pytest.fixture(scope="module")
+def fixture_dir(tmp_path_factory):
+    sys.path.insert(0, os.path.join(ROOT, "tests"))
+    from make_fixtures import build
+    return build(str(tmp_path_factory.mktemp("fx")))
+
+
+def _chunks(fixture_dir, name):
+    from docs_rag.extract import extract_pages
+    with open(os.path.join(fixture_dir, name), "rb") as f:
+        pages = extract_pages(f.read())
+    meta = {"file": name, "brand": "B", "product": "P", "doc_type": "TDS"}
+    return pages, chunk_document(pages, meta, 220, 40, 12)
+
+
+def test_duspec_style_headings_and_table_position(fixture_dir):
+    pages, chunks = _chunks(fixture_dir, "acme-trimcoat-satin-tds.pdf")
+    by_section = {c["section"]: c for c in chunks}
+    assert "Uses" in by_section                                  # inline "Uses: ..." heading split out
+    assert by_section["Uses"]["text"].startswith("Use Acme TrimCoat")
+    assert "Recoat: 3 hours" in by_section["Application"]["text"]  # table stays under its heading
+    assert "Recoat" not in by_section["Clean Up"]["text"]
+    assert by_section["Clean Up"]["section_canonical"] == "Clean up"
+
+
+def test_two_column_reading_order(fixture_dir):
+    pages, chunks = _chunks(fixture_dir, "brightco-gripfix-tds.pdf")
+    assert pages[0]["n_columns"] == 2
+    text = pages[0]["text"]
+    # left column is read top-to-bottom before the right column; lines are not merged across
+    assert text.index("Approvals and Standards") < text.index("Technical Details") < text.index("How To Use")
+    assert "Approvals and Standards\n" in text
+    assert text.rstrip().endswith("service@brightco.example")      # full-width footer kept whole
+    how = next(c for c in chunks if c["section"] == "How To Use")
+    assert how["section_canonical"] == "Application" and "24 hours" in how["text"]
+
+
+def test_single_column_pages_not_split(fixture_dir):
+    from docs_rag.extract import extract_pages
+    with open(os.path.join(fixture_dir, "acme-wallguard-low-sheen-tds.pdf"), "rb") as f:
+        assert all(p["n_columns"] == 1 for p in extract_pages(f.read()))
+
+
+def test_heading_rules():
+    from docs_rag.chunking import split_inline_heading
+    assert detect_heading("Description and Image") == "Description and Image"
+    assert detect_heading("Wet and dry timber") is None           # not title case
+    assert detect_heading("Liquid Nails Original") is None        # no section keyword
+    assert split_inline_heading("Uses: Use it on doors and trim where a durable finish is needed.")[0] == "Uses"
+    assert split_inline_heading("Recoat: 2 hours") is None         # table row, not a heading
+    assert canonical_section("Secure fixing") == "General"         # 'cur' must not match 'secure'
+    assert detect_heading("Standards & Certificates") == "Standards & Certificates"
+    assert canonical_section("Small Spills") == "Spills"
+    assert canonical_section("Large Spills") == "Spills"
+    assert canonical_section("Dangerous Good Classification") == "Transport"
+    assert canonical_section("Chemical Entity Cas No Proportion") == "Composition"
+    assert canonical_section("Introduction") == "Product description"
+    assert canonical_section("Approvals & Standards") == "Approvals"
+    assert canonical_section("Standards & Certificates") == "Approvals"
+    assert canonical_section("Product Information") == "Technical data"
+    assert canonical_section("Maintenance") == "Maintenance"

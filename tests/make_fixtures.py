@@ -69,6 +69,64 @@ def sds(path, brand, product, first_aid):
     doc.build(story, onFirstPage=_footer(brand), onLaterPages=_footer(brand))
 
 
+def duspec_style(path):
+    """Like a DuSpec+ sheet: Title Case headings with no colon, inline 'Uses: ...' headings,
+    and a table in the MIDDLE of the page between two headings."""
+    doc = SimpleDocTemplate(path, pagesize=A4)
+    body = ss["BodyText"]
+    tbl = Table([["Touch dry", "45 minutes"], ["Recoat", "3 hours"], ["Coverage", "12 m2 per litre"]],
+                colWidths=[150, 250])
+    tbl.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.grey)]))
+    story = [
+        Paragraph("Acme TrimCoat Satin", body),
+        Paragraph("Introduction", body),
+        Paragraph("Part A 999 LINE", body),
+        Paragraph("Description and Image", body),
+        Paragraph("Acme TrimCoat Satin is a water based enamel for interior doors and trim that dries to a hard satin finish.", body),
+        Paragraph("Uses: Use Acme TrimCoat Satin on doors, windows, skirting boards and architraves where a durable washable finish is required.", body),
+        Paragraph("Application", body),
+        tbl, Spacer(1, 8),
+        Paragraph("Clean Up", body),
+        Paragraph("Clean brushes and rollers in water immediately after use. Do not pour leftover paint down the drain.", body),
+    ]
+    doc.build(story)
+
+
+def two_column(path):
+    """Like a Selleys sheet: two text columns, a table in the right column, full-width footer."""
+    from reportlab.platypus import BaseDocTemplate, Frame, FrameBreak, PageTemplate
+    W, H = A4
+    frames = [Frame(40, 80, (W - 100) / 2, H - 160, id="left"),
+              Frame(60 + (W - 100) / 2, 80, (W - 100) / 2, H - 160, id="right")]
+
+    def footer(canvas, doc):
+        canvas.setFont("Helvetica", 8)
+        canvas.drawString(40, 40, "Head Office 1 Example Street Sydney NSW 2000 T: 1300 000 000 E: service@brightco.example")
+
+    doc = BaseDocTemplate(path, pagesize=A4)
+    doc.addPageTemplates([PageTemplate(id="two", frames=frames, onPage=footer)])
+    body = ss["BodyText"]
+    tbl = Table([["Property", "Typical Result"], ["Open Time", "20 minutes"], ["Cure time", "24 hours"]],
+                colWidths=[110, 110])
+    tbl.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.grey)]))
+    story = [
+        Paragraph("GripFix Construction Adhesive", ss["Heading2"]),
+        Paragraph("Description", ss["Heading3"]),
+        Paragraph("GripFix is a high strength multipurpose construction adhesive that forms a strong and lasting bond on most building materials including timber and plasterboard.", body),
+        Paragraph("Uses", ss["Heading3"]),
+        Paragraph("GripFix is suitable for timber, plasterboard, MDF, masonry, concrete, tiles and metals in interior and exterior applications.", body),
+        Paragraph("Approvals and Standards", ss["Heading3"]),
+        Paragraph("GripFix meets the requirements of the example construction adhesive standard for wet and dry timber.", body),
+        FrameBreak(),
+        Paragraph("Technical Details", ss["Heading3"]),
+        tbl, Spacer(1, 8),
+        Paragraph("How To Use", ss["Heading3"]),
+        Paragraph("Ensure surfaces are free from oil, grease and dust before applying the adhesive in beads every 40 cm along each stud or batten.", body),
+        Paragraph("Press pieces firmly together and allow the adhesive to set for 24 hours before removing temporary fasteners.", body),
+    ]
+    doc.build(story)
+
+
 def blank(path):
     from reportlab.pdfgen import canvas
     c = canvas.Canvas(path, pagesize=A4)
@@ -96,6 +154,8 @@ def build(out_dir: str) -> str:
         "Eye contact: rinse with running water for 15 minutes. Skin: wash with soap and water.")
     shutil.copy(f"{out_dir}/acme-wallguard-low-sheen-sds.pdf", f"{out_dir}/acme-wallguard-low-sheen-sds-copy.pdf")
     blank(f"{out_dir}/scanned-leaflet.pdf")
+    duspec_style(f"{out_dir}/acme-trimcoat-satin-tds.pdf")
+    two_column(f"{out_dir}/brightco-gripfix-tds.pdf")
     with open(f"{out_dir}/manifest.csv", "w") as f:
         f.write("file,brand,product,doc_type,source_url\n")
         f.write("acme-wallguard-low-sheen-tds.pdf,Acme,WallGuard Low Sheen,TDS,https://example.com/a.pdf\n")
