@@ -10,6 +10,10 @@ without code changes.
 > Independent portfolio project built over **publicly available** product data sheets. Not affiliated with,
 > endorsed by, or built for DuluxGroup.
 
+**Measured on 29 hand-checked questions:** retrieval accuracy 55% → 100% with metadata filtering,
+97% answer accuracy, and 100% correct refusals on the 7 questions the documents can't answer.
+[Full results](#results).
+
 ---
 
 ## Architecture
@@ -19,7 +23,7 @@ flowchart LR
     A[PDFs in a UC Volume<br/>+ manifest.csv] -->|binaryFile + mapInPandas| B[(Bronze<br/>bronze_pages<br/>1 row per page)]
     B -->|clean · dedupe · section-aware chunking<br/>applyInPandas + window fns| C[(Silver<br/>silver_chunks<br/>tagged chunks)]
     C -->|bge-small-en-v1.5| D[(Gold<br/>gold_chunk_embeddings<br/>Delta + CDF)]
-    D --> E[FAISS index<br/>or Databricks Vector Search]
+    D --> E[Hybrid retrieval<br/>FAISS vectors + BM25 keywords<br/>merged with RRF]
     Q[Question] --> F{Product or brand<br/>named?}
     F -->|yes: metadata filter| E
     F -->|no| E
@@ -51,9 +55,10 @@ notebooks/                Databricks notebooks (source format), run in order
   05_evaluation           hit rate@k, answer accuracy, results table
 src/docs_rag/             plain-Python package used by notebooks, Spark UDFs and local runs
 scripts/                  run_local.py (whole pipeline without Spark), download_pdfs.py,
-                          download_model.py, draft_eval_questions.py
+                          download_model.py, draft_eval_questions.py, inspect_sections.py
 eval/questions.jsonl      evaluation questions (answers checked against the PDFs)
-tests/                    unit tests + a local-Spark test of Bronze/Silver on synthetic PDFs
+tests/                    unit tests (chunking, filters, hybrid retrieval, PDF layouts) + a
+                          local-Spark test of Bronze/Silver on synthetic PDFs
 ```
 
 ## How to run
@@ -103,38 +108,69 @@ pytest -q tests      # offline: synthetic PDFs, fake embedder + fake LLM, local 
 
 ## Demo corpus: DuluxGroup product data sheets
 
-<!-- TODO: fill in the real counts after notebook 01 -->
-- **[N] PDFs** from Dulux, Selleys and Cabot's: [n] Technical Data Sheets (TDS) and [n] Safety Data Sheets (SDS), [n] pages.
-- Sources: publicly available documents from official DuluxGroup channels (e.g. the DuSpec+ specification site for
-  TDS and the DuluxGroup SDS portal). `data/manifest.csv` records the source URL of every file.
+- **34 public documents** from Dulux, Cabot's and Selleys: 29 Technical Data Sheets and 5 Safety
+  Data Sheets, 138 pages, producing 532 chunks.
+- Sources: publicly available documents from official DuluxGroup channels (the DuSpec+ specification site for TDS, the
+  DuluxGroup SDS portal, and the Selleys and Cabot's product sites). `data/manifest.csv` records the source URL of
+  every file.
 - The PDFs themselves are **not committed** (third-party copyright). Run `scripts/download_pdfs.py` to fetch them.
 - Why this corpus: data sheets are highly structured, full of tables, and contain many **near-identical products**
-  (e.g. *Wash&Wear 101 Low Sheen* vs *Wash&Wear +Plus Kitchen & Bathroom*), which makes retrieval a real challenge.
+  (Aquanamel Gloss / Semi Gloss / Low Gloss, four Weathershield finishes, four Cabothane variants), which makes
+  retrieval a real challenge.
 
 ## Example questions and answers
 
-<!-- TODO: paste 3-4 real outputs from notebook 04 (answer + citations), including one "not in the documents" -->
+Real output from `notebooks/04_rag_query`, running on Databricks:
+
 ```
-Q: ...
-A: ... [S1]
-   [S1] <file>.pdf p.2 - Recoat Time
+Q: What is the touch dry time for Aquanamel Gloss?
+A: Touch dry time for Dulux Aquanamel Gloss is 30 Minutes [S4].
+   (metadata filter: {'product': ['Aquanamel Gloss']})
+   [S4] dulux-aquanamel-gloss-tds.pdf p.2 - Typical Properties
+
+Q: What is the touch dry time for Aquanamel Semi Gloss?
+A: The touch dry time for Dulux Aquanamel Semi Gloss is 30 Minutes [S4], though the full film
+   requires 7 days to fully cure before cleaning [S1].
+   (metadata filter: {'product': ['Aquanamel Semi Gloss']})
+   [S1] dulux-aquanamel-semi-gloss-tds.pdf pp.1-2 - Precautions and Limitations
+   [S4] dulux-aquanamel-semi-gloss-tds.pdf p.2 - Typical Properties
+
+Q: How much does a 4 litre tin of Weathershield Low Sheen cost?
+A: That information is not in the documents. The sources cover the product's weight
+   (5.5 Kg for 4 Litre) [S2] but not pricing.
+   [S2] dulux-weathershield-low-sheen-tds.pdf p.4 - Transport and Storage
 ```
+
+The first two are sibling products whose data sheets are nearly identical; each answer is drawn from
+its own document. The third is a question the corpus cannot answer.
 
 ## Results
 
-<!-- TODO: paste the table printed by notebook 05 -->
-Evaluation on **[20] hand-checked questions** ([15] answerable, [5] deliberately unanswerable):
+29 questions, each written by hand with its answer read from the source PDF: 22 answerable,
+7 deliberately unanswerable (a price, a retailer, a real Dulux product outside the corpus, a
+technology none of the documents mention, and colour advice).
 
 | run | k | metadata_filter | n_questions | retrieval_hit_rate | answer_accuracy | unanswerable_refusal_rate | citation_accuracy |
 |---|---|---|---|---|---|---|---|
-| k5_nofilter | 5 | False | 20 | – | – | – | – |
-| k3_filter | 3 | True | 20 | – | – | – | – |
-| k5_filter | 5 | True | 20 | – | – | – | – |
+| k5_nofilter | 5 | False | 29 | 55% | 52% | 100% | 86% |
+| k3_filter | 3 | True | 29 | 96% | 93% | 100% | 100% |
+| k5_filter | 5 | True | 29 | 100% | 97% | 100% | 100% |
 
-- **retrieval_hit_rate**: answerable questions where a chunk from the expected file (and page) is in the top-k.
+- **retrieval_hit_rate**: answerable questions where a chunk from the expected file and page is in the top-k.
 - **answer_accuracy**: all questions judged correct; answerable ones by an LLM judge against the hand-written reference
   answer, unanswerable ones only if the system says "not in the documents".
 - **citation_accuracy**: answerable questions whose citations include the expected file.
+
+**Reading this:** metadata filtering is what moves the numbers — retrieval hit rate 55% → 100%.
+Without it, a question about one product routinely retrieves a sibling's data sheet.
+Refusals were perfect in every configuration: the system never invented a price, a retailer or a
+warranty, which is the behaviour that matters most for product safety information.
+
+**The one failure at k=5 with filtering** is question q04, the recoat time for 1 Step Prep. The source
+table has Min / Max / Recommended columns, so the row reads `Recoat Time 2 hours | Indefinite | 2 hours`.
+Extraction flattens the table to a single line, the column headers are lost, and the model attributed
+"indefinite" to roller application rather than to the maximum column. The values survive; their meaning
+doesn't. Carrying column headers through extraction is the fix.
 
 ## Design decisions
 
@@ -151,6 +187,15 @@ products is almost the same text and gets almost the same vector.
 names a known product (matched on normalised names, most specific first; "&" = "and", ® and ™ ignored), retrieval
 searches only that product's chunks, falling back to the brand, then to an unfiltered search. The evaluation reports
 results with and without the filter.
+
+**Hybrid retrieval: vector plus keyword.** Vector search alone missed a question whose answer was in
+the corpus: the recoat time for 1 Step Prep sits inside a long passage about film thickness and spread
+rates, titled "Clean Up", and ranked 9th for "What is the recoat time...?". The literal phrase
+"Recoat Time" was right there. So retrieval now runs BM25 keyword search alongside vector search and
+merges the two rankings with Reciprocal Rank Fusion. Two details mattered: the product name is stripped
+from the keyword query (every chunk of that product contains it, and BM25 favours short documents), and
+stopwords are removed (otherwise "what is the ... for" matches short chunks on common words). Each
+result records whether it was found by `vector`, `keyword` or `both`.
 
 **Tables rendered as `key: value` lines.** Plain PDF text extraction reads tables row-by-row across columns and mixes
 them with the text beside them. pdfplumber finds the table boxes; text outside them is extracted normally, and each
@@ -200,11 +245,17 @@ Found on the real corpus (34 public data sheets):
 | Hundreds of `Could not get FontBBox` warnings from malformed fonts in some PDFs | harmless; silenced pdfminer's logger |
 | Even after the layout fixes, several genuine headings still fell into "General": SDS sub-headings (`Small Spills`, `Dangerous Good Classification`, `Chemical Entity Cas No Proportion`), TDS `Introduction`/`Product Information` blocks, and Selleys `Standards & Certificates` — either unmapped in `CANONICAL` or (for `Standards & Certificates`) not yet in `TDS_HEADINGS` | added `Standards & Certificates` as a recognised heading, and new `CANONICAL` keyword rules (`spill`→Spills, `dangerous good`→Transport, `cas no`/`proportion`→Composition, `introduction`→Product description, `approv`/`standard`/`certif`→Approvals, `product information`→Technical data, `maintenance`→Maintenance) |
 | DuSpec+ page frames with panel dividers were read as a one-column table covering the page, squashing each panel (heading + property table) into one line | reject "tables" with fewer than 2 rows or 2 columns of content, or covering >70% of the page |
-
-<!-- TODO: add more as you find them (a product retrieved for its sibling, an answer from outside knowledge, ...) -->
+| An SDS title drawn with wide letter spacing was read as two columns and split mid-word (`Weathershield` → `Weat` + `hershield`) | a column gutter must be at least 14 points wide; letter spacing inside a word is narrower |
+| A rare exact phrase buried in a long noisy chunk ranked 9th under vector search (`Recoat Time` inside the 1 Step Prep "Clean Up" passage) | hybrid retrieval: BM25 keyword search merged with vector search by Reciprocal Rank Fusion |
 
 ## Limitations
 - No OCR: pages without a text layer are flagged in `silver_dq_checks` and skipped.
 - The answer judge is an LLM; answerable questions were written and checked by hand, but judging is still automated.
-- 20 questions is a small evaluation set; treat differences of one or two questions as noise.
+- At k=5 with metadata filtering the question set is nearly saturated (one failure in 29), so it can no
+  longer discriminate between good and better configurations. Harder questions are the next step:
+  questions that name no product, ambiguous product references, and answers that span a TDS and an SDS.
+- Multi-column tables (Min / Max / Recommended) are flattened during extraction, which preserves the
+  values but loses which column each belongs to.
+- The evaluation runs sequentially, roughly 150 model calls in about 9 minutes. It would parallelise
+  easily; it just hasn't needed to.
 - English-only; product matching relies on product names in the manifest or document title.
