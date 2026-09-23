@@ -28,7 +28,7 @@ flowchart LR
     F -->|yes: metadata filter| E
     F -->|no| E
     E -->|top-k chunks| G[Claude Sonnet 5<br/>via Vercel AI Gateway]
-    G --> H[Answer + citations<br/>or "not in the documents"]
+    G --> H["Answer + citations<br/>or 'not in the documents'"]
     H --> L[(qa_log)]
     C -.-> DQ[(silver_dq_checks)]
     H -.-> EV[(eval_results)]
