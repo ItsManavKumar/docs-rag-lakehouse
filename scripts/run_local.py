@@ -100,7 +100,8 @@ def gold(cfg, test_mode=False):
 def load_retriever(cfg, test_mode=False):
     idx = VectorIndex.load(os.path.join(LAKE, "faiss"))
     r = cfg["retrieval"]
-    return Retriever(idx, build_embedder(cfg, test_mode), r["top_k"], r["use_metadata_filter"])
+    return Retriever(idx, build_embedder(cfg, test_mode), r["top_k"], r["use_metadata_filter"],
+                     r.get("hybrid", True))
 
 
 def ask(cfg, question, test_mode=False):

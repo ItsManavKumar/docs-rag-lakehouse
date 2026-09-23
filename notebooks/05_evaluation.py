@@ -42,7 +42,8 @@ print(f"{len(qs)} questions ({sum(not q['answerable'] for q in qs)} unanswerable
 assert not any("<" in q["question"] for q in qs), "Replace the template questions in eval/questions.jsonl first"
 
 r = cfg["retrieval"]
-retriever = Retriever(VectorIndex.load(r["index_dir"]), build_embedder(cfg), r["top_k"], r["use_metadata_filter"])
+retriever = Retriever(VectorIndex.load(r["index_dir"]), build_embedder(cfg), r["top_k"],
+                      r["use_metadata_filter"], r.get("hybrid", True))
 llm = build_client(cfg, dbutils=dbutils)
 
 # COMMAND ----------

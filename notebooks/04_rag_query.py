@@ -42,7 +42,7 @@ if r["vector_backend"] == "databricks_vs":
 else:
     index = VectorIndex.load(r["index_dir"])
 
-retriever = Retriever(index, build_embedder(cfg), r["top_k"], r["use_metadata_filter"])
+retriever = Retriever(index, build_embedder(cfg), r["top_k"], r["use_metadata_filter"], r.get("hybrid", True))
 llm = build_client(cfg, dbutils=dbutils)
 print(f"{len(index.records)} chunks, backend={index.backend}, {len(retriever.products)} products, model={cfg['llm']['model']}")
 

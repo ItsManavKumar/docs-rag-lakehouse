@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from .filters import detect_filters
+from .filters import detect_filters, strip_entities
 
 NOT_FOUND = "not in the documents"
 
@@ -44,17 +44,22 @@ def cited_sources(answer: str, chunks: list[dict]) -> list[dict]:
 
 
 class Retriever:
-    def __init__(self, index, embedder, top_k: int = 5, use_metadata_filter: bool = True):
+    def __init__(self, index, embedder, top_k: int = 5, use_metadata_filter: bool = True,
+                 hybrid: bool = True):
         self.index = index
         self.embedder = embedder
         self.top_k = top_k
         self.use_metadata_filter = use_metadata_filter
+        # hybrid = vector + BM25 keyword search merged (see index.search_hybrid)
+        self.hybrid = hybrid and hasattr(index, "search_hybrid")
         self.products = sorted({r["product"] for r in index.records if r.get("product")})
         self.brands = sorted({r["brand"] for r in index.records if r.get("brand") and r["brand"] != "Unknown"})
 
-    def retrieve(self, question: str, k: int | None = None, use_filter: bool | None = None) -> tuple[list[dict], dict]:
+    def retrieve(self, question: str, k: int | None = None, use_filter: bool | None = None,
+                 hybrid: bool | None = None) -> tuple[list[dict], dict]:
         k = k or self.top_k
         use_filter = self.use_metadata_filter if use_filter is None else use_filter
+        hybrid = self.hybrid if hybrid is None else (hybrid and hasattr(self.index, "search_hybrid"))
         qv = self.embedder.embed_query(question)
         filters = detect_filters(question, self.products, self.brands) if use_filter else {}
         applied: dict = {}
@@ -62,16 +67,23 @@ class Retriever:
             applied = {"product": filters["product"]}
         elif filters.get("brand"):
             applied = {"brand": filters["brand"]}
-        hits = self.index.search(qv, k, applied or None)
+        lexical_q = strip_entities(question, filters.get("product", []) + filters.get("brand", []))
+
+        def run(filters):
+            if hybrid:
+                return self.index.search_hybrid(qv, lexical_q, k, filters)
+            return self.index.search(qv, k, filters)
+
+        hits = run(applied or None)
         if applied and not hits:  # filter matched nothing -> fall back to unfiltered
             applied = {}
-            hits = self.index.search(qv, k)
+            hits = run(None)
         return hits, applied
 
 
 def answer_question(question: str, retriever: Retriever, llm, k: int | None = None,
-                    use_filter: bool | None = None) -> dict:
-    chunks, applied = retriever.retrieve(question, k, use_filter)
+                    use_filter: bool | None = None, hybrid: bool | None = None) -> dict:
+    chunks, applied = retriever.retrieve(question, k, use_filter, hybrid)
     answer = llm.chat(build_messages(question, chunks)).strip()
     return {
         "question": question,
@@ -79,8 +91,9 @@ def answer_question(question: str, retriever: Retriever, llm, k: int | None = No
         "not_found": NOT_FOUND in answer.lower(),
         "citations": cited_sources(answer, chunks),
         "filters_applied": applied,
-        "retrieved": [{k2: c[k2] for k2 in ("rank", "score", "file", "product", "section",
-                                              "page_start", "page_end", "chunk_id")} for c in chunks],
+        "retrieved": [{k2: c.get(k2) for k2 in ("rank", "score", "found_by", "file", "product",
+                                                 "section", "page_start", "page_end", "chunk_id")}
+                      for c in chunks],
     }
 
 

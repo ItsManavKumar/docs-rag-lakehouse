@@ -39,6 +39,7 @@ embedding:
 retrieval:
   top_k: 5
   use_metadata_filter: true   # restrict search to a product/brand named in the question
+  hybrid: true                # vector search + BM25 keyword search, merged (see src/docs_rag/index.py)
   vector_backend: faiss       # faiss | databricks_vs
   index_dir: /Volumes/workspace/docs_rag/artifacts/faiss
   vs_endpoint: docs-rag-endpoint   # only used when vector_backend = databricks_vs

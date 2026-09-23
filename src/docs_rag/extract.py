@@ -95,8 +95,13 @@ def _rows_of_words(words: list[dict], tol: float = 3.0) -> list[list[dict]]:
     return rows
 
 
-def _crosses(row: list[dict], x: float, gap: float = 6.0) -> bool:
-    """Does this line of text run through x (i.e. it is not split by a gutter at x)?"""
+# a column gutter is a wide gap; wide letter spacing inside a word is a narrow one.
+# "W e a t h e r s h i e l d" in a letter-spaced SDS title was being split mid-word.
+MIN_GUTTER = 14.0
+
+
+def _crosses(row: list[dict], x: float, gap: float = MIN_GUTTER) -> bool:
+    """Does this line of text run through x (i.e. it is not split by a wide gap at x)?"""
     for w in row:
         if w["x0"] < x < w["x1"]:
             return True
@@ -134,7 +139,7 @@ def find_gutter(page, words: list[dict] | None = None) -> float | None:
         left = sum(1 for r, c in zip(rows, crossing) if not c and any(w["x1"] <= x for w in r))
         right = sum(1 for r, c in zip(rows, crossing) if not c and any(w["x0"] >= x for w in r))
         # a right-aligned page number or date must not make a page "two-column"
-        if (sum(crossing) <= 0.3 * n and min(left, right) >= max(3, 0.25 * n)):
+        if (sum(crossing) <= 0.3 * n and min(left, right) >= max(4, 0.25 * n)):
             candidates.append((sum(crossing), x))
     if not candidates:
         return None

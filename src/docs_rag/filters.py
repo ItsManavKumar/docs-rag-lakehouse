@@ -65,3 +65,18 @@ def detect_filters(question: str, products: list[str], brands: list[str],
 
     brand_hits = [b for b in brands if b and f" {norm(b)} " in q]
     return {"product": sorted(set(hits)), "brand": sorted(set(brand_hits))}
+
+
+def strip_entities(question: str, names: list[str]) -> str:
+    """Remove product/brand names from a question, for keyword search.
+
+    The product is already handled by the metadata filter, and every chunk of that
+    product contains its name, so leaving it in the keyword query just rewards short
+    chunks. "recoat time for Dulux 1 Step Prep" -> "recoat time for".
+    """
+    q = norm(question)
+    for name in sorted(names, key=len, reverse=True):
+        n = norm(name)
+        if n:
+            q = q.replace(n, " ")
+    return re.sub(r"\s+", " ", q).strip() or norm(question)

@@ -10,8 +10,14 @@ _LIGATURES = {"ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl"}
 _PAGE_NO = re.compile(r"^\s*(page\s*)?\d+\s*(of|/)\s*\d+\s*$", re.I)
 
 
+# icon fonts (DuSpec+ data sheets) put glyphs in the Unicode private use area:
+# "Clean Up \ue905 Water" -> "Clean Up Water"
+_PRIVATE_USE = re.compile(r"[\ue000-\uf8ff]")
+
+
 def normalize_text(text: str) -> str:
     text = unicodedata.normalize("NFKC", text or "")
+    text = _PRIVATE_USE.sub(" ", text)
     for k, v in _LIGATURES.items():
         text = text.replace(k, v)
     text = text.replace("­", "")                       # soft hyphen
